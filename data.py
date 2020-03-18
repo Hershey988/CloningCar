@@ -7,11 +7,81 @@ import matplotlib.pyplot as plt # Needed to plot data
 import numpy as np # Needed for histogram and other stuff
 import random # Needed to shuffle the data array
 import csv # Needed to write to a csv file
+from skimage import io
+import cv2
+from PIL import Image
 
 def splitPath(data):
     front, end = ntpath.split(data)
     # return the name of the image file
     return "IMG/" + end
+    
+# Helper function that generates coordinates for polygons.
+def generate_shadow_coordinates(imshape, no_of_shadows):
+  vertices_list=[]
+  for index in range(no_of_shadows):
+    vertex=[]
+    for dimensions in range(np.random.randint(3,15)):
+      ## Dimensionality of the shadow polygon
+      vertex.append(( imshape[1]*np.random.uniform(),imshape[0]//3+imshape[0]*np.random.uniform()))
+      vertices = np.array([vertex], dtype=np.int32) ## single shadow vertices
+      vertices_list.append(vertices)
+  return vertices_list ## List of shadow vertices
+
+
+# Helper function to add shadow to images
+def add_shadow(image,no_of_shadows):
+  image_HLS = cv2.cvtColor(image,cv2.COLOR_RGB2HLS) ## Conversion to HLS
+  mask = np.zeros_like(image)
+  imshape = image.shape
+  image_RGB = image
+  vertices_list= generate_shadow_coordinates(imshape, no_of_shadows)
+  #3 getting list of shadow vertices
+  for vertices in vertices_list:
+    cv2.fillPoly(mask, vertices, 255)
+    ## adding all shadow polygons on empty mask, single 255 denotes only red channel
+    image_HLS[:,:,1][mask[:,:,0]==255] = image_HLS[:,:,1][mask[:,:,0]==255]*0.5
+    ## if red channel is hot, image's "Lightness" channel's brightness is lowered
+    image_RGB = cv2.cvtColor(image_HLS,cv2.COLOR_HLS2RGB) ## Conversion to RGB
+  
+  #print(image_RGB.shape)
+  
+  return image_RGB
+
+
+# GENERATE SHADOW IMAGES AND ADD THEM TO THE EXCEL SHEET and SAVE THEM
+def add_shadow_csv(data_dir):
+    
+    #data_dir = 'CloningCar/udacityData'
+    #image_dir = 'CloningCar/udacityData/'
+    data_to_process = pd.read_csv(os.path.join(data_dir, 'balanced_data.csv'))
+    print('IN add_shadow_csv:  ', data_to_process.shape )
+    with open(os.path.join(data_dir, 'balanced_data.csv'),'a') as output:
+        mywrite = csv.writer(output)
+        for i in range(len(data_to_process['steering'])):
+            #adding shadows to the left image
+      
+            #Check where the image belongs to
+            path_to_image = ''
+            output_path = ''
+
+            if os.path.isfile(os.path.join('udacityData',data_to_process['image'][i])):
+                path_to_image = os.path.join('udacityData', data_to_process['image'][i])
+                output_path = os.path.join('udacityData', data_to_process['image'][i].replace('.jpg', '_shadow.jpg').strip())
+            else:
+                path_to_image = os.path.join('finalData', data_to_process['image'][i])
+                output_path = os.path.join('finalData', data_to_process['image'][i].replace('.jpg', '_shadow.jpg').strip())
+      
+            #ADD SHADOW TO THE IMAGE and save it
+            img = io.imread(path_to_image)
+            img_shadow = add_shadow(img,i % 3)#adding upto 3 shadows
+            Image.fromarray(img_shadow).save(output_path)
+        
+            #WRITE IT TO THE CSV FILE.
+            mywrite.writerow([data_to_process['image'][i].replace('.jpg', '_shadow.jpg').strip(), data_to_process['steering'][i]])
+
+
+
 
 def plotRawData(fd, fd_2):
     # Plotting the steering angle data
@@ -106,9 +176,14 @@ def balanceData(fd, fd_2, data_dir):
             mywrite.writerow([data_to_process['center'][i].strip(), data_to_process['steering'][i]])
             mywrite.writerow([data_to_process['left'][i].strip(), data_to_process['steering'][i]])
             mywrite.writerow([data_to_process['right'][i].strip(), data_to_process['steering'][i]])
-
+    
+    # Now that a balanced sheet was created, we will generate shadows for each of these
+    # images.
+    add_shadow_csv(data_dir)
     ##END ADDED
 
+    some_fd = pd.read_csv(os.path.join(data_dir, 'balanced_data.csv'))
+    print('AFTER SHADOWS:: add_shadow_csv:  ', some_fd.shape)
 
     #data_to_process.to_csv(os.path.join(data_dir, 'balanced_data.csv'))
 

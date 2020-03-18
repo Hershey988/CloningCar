@@ -45,8 +45,8 @@ neurons_1   = 500     # number of neurons in the first dense layer
 neurons_2   = 100     # number of neurons in the second dense layer
 neurons_3 =  50
 neurons_out =1  #output neurons
-batchsize = 200
-epoch = 25
+batchsize = 300  # 200 -> 500
+epoch = 15 # 25 -> 100 -> 25
 data_dir = 'udacityData'
 #model
 model = models.Sequential()
@@ -99,20 +99,30 @@ model.compile(optimizers.Adam(lr=0.001),
 
 
 #extract im and str from csv and test should be 20 %
-fd = pd.read_csv(os.path.join(data_dir, 'balanced_data.csv'))
+fd = pd.read_csv(os.path.join('newSpreadsheet', 'balanced_data.csv'))
 images_train, images_valid, steering_train, steering_valid = train_test_split(fd['image'], fd['steering'], test_size=0.2)
 images_train_list = []
 images_valid_list = []
 steering_train_list = []
 steering_valid_list = []
 for i in images_train:
-  path = os.path.join(data_dir,i)
-  img = io.imread(path)
-  images_train_list.append(img)
+    path = ''
+    if os.path.isfile(os.path.join('udacityData',i)):
+        path = os.path.join('udacityData',i)
+    else:
+        path = os.path.join('finalData',i)
+    
+    img = io.imread(path)
+    images_train_list.append(img)
 for i in images_valid:
-  path = os.path.join(data_dir,i)
-  img = io.imread(path)
-  images_valid_list.append(img)
+    path = ''
+    if os.path.isfile(os.path.join('udacityData',i)):
+        path = os.path.join('udacityData',i)
+    else:
+        path = os.path.join('finalData',i)
+      
+    img = io.imread(path)
+    images_valid_list.append(img)
  
 
 def initlist(n):
@@ -141,7 +151,27 @@ val_steering = steer(steering_valid.values)
 train_steering = steer(steering_train.values)
 
 #model.fit(np.asarray(images_train_list), train_steering,batch_size=batchsize,   epochs=epoch, validation_data=(np.asarray(images_valid_list), val_steering),shuffle=True)
-model.fit(np.asarray(images_train_list),steering_train.values ,batch_size=batchsize,   epochs=epoch, validation_data=(np.asarray(images_valid_list),steering_valid.values ),shuffle=True)
+history = model.fit(np.asarray(images_train_list),steering_train.values, batch_size=batchsize,   epochs=epoch, validation_data=(np.asarray(images_valid_list),steering_valid.values),shuffle=True)
+
+print(history.history)
+
+# Plot training & validation accuracy values
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Plot training & validation loss values
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
 
 # SAve the trained model for us to test it on the track
-model.save('model.h5')
+model.save('model0317_with_shadows.h5')
